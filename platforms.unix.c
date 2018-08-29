@@ -44,4 +44,32 @@ int luashell_launch(const char** args, int count)
     return 0;
 }
 
+int luashell_fileexists(const char* path)
+{
+    FILE* file = fopen(path, "r");
+    if (file)
+    {
+        fclose(file);
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+int luashell_isdirectory(const char* path)
+{
+    DIR* dir = opendir(path);
+    if (dir)
+    {
+        closedir(dir);
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 #endif

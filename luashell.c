@@ -114,11 +114,31 @@ struct luashell_command
 static int luashell_command_cd(const char** args, int count);
 //static int luashell_command_ls(const char** args);
 static int luashell_command_exit(const char** args, int count);
+static int luashell_command_exec(const char** args, int count);
 
 static struct luashell_command commands[] = {
-    { "cd", luashell_command_cd },
+    { "cd"  , luashell_command_cd   },
     { "exit", luashell_command_exit },
+    { "exec", luashell_command_exec },
 };
+
+static lua_State* lua_state;
+static int luashell_openlua(void)
+{
+    lua_state = luaL_newstate();
+    if (!lua_state)
+    {
+        return -1;
+    }
+    luaL_openlibs(lua_state);
+
+    return 0;
+}
+
+static void luashell_closelua(void)
+{
+    lua_close(lua_state);
+}
 
 static int luashell_execute(const char** args, int count)
 {
@@ -138,6 +158,12 @@ static int luashell_execute(const char** args, int count)
             {
                 return commands[i].func(args, count);
             }
+        }
+
+        int len = strlen(args[0]);
+        if (strcmp(args[0] + len - 4, ".lua") == 0)
+        {
+            return luaL_loadfile(lua_state, args[0]) || lua_pcall(lua_state, 0, LUA_MULTRET, 0);
         }
 
         return luashell_launch(args, count);
@@ -171,6 +197,12 @@ int luashell_command_exit(const char** args, int count)
     return 0;
 }
 
+int luashell_command_exec(const char** args, int count)
+{
+    assert(args && strcmp("exec", args[0]) == 0);
+    return luashell_launch(args + 1, count);
+}
+
 static void _sighandler(int sig)
 {
     switch (sig)
@@ -179,6 +211,22 @@ static void _sighandler(int sig)
         /* NULL */
         break;
     }
+}
+
+static int luashell_lua_exit(lua_State* state)
+{
+    exit(EXIT_SUCCESS);
+    lua_pushinteger(state, 0);
+    return 1;
+}
+
+static int luashell_lua_exec(lua_State* state)
+{
+    static char** args;
+    static int argscap;
+    
+    lua_pushinteger(state, 0);
+    return 1;
 }
 
 int main(int argc, char* argv[])
@@ -190,14 +238,11 @@ int main(int argc, char* argv[])
 
     /* skip Ctrl+C signal */
     signal(SIGINT, _sighandler);
-    
-    lua_State* lua;
-    lua = luaL_newstate();
-    if (!lua)
+
+    if (luashell_openlua() != 0)
     {
         return -1;
     }
-    luaL_openlibs(lua);
     
     do
     {
@@ -211,6 +256,6 @@ int main(int argc, char* argv[])
         status = luashell_execute((const char**)args, count);
     } while (!status);
 
-    lua_close(lua);
+    luashell_closelua();
     return EXIT_SUCCESS;
 }
