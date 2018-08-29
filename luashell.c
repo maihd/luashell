@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
-#include <sys/wait.h>
+#include <signal.h>
 
 //
 // Lua runtime
@@ -17,6 +16,8 @@
 #include <luajit.h>
 #include <lualib.h>
 #include <lauxlib.h>
+
+#include "platforms.h"
 
 static char* luashell_getline(char* buffer, int length)
 {
@@ -46,7 +47,7 @@ static char* luashell_faststrtrim(char* buffer)
     return buffer;
 }
 
-static char** luashell_splitargs(char* input)
+static char** luashell_splitargs(char* input, int* outcount)
 {
     static char** args;
     static int argscap;
@@ -67,7 +68,15 @@ static char** luashell_splitargs(char* input)
 
         if (input != arg)
         {
-            *input++ = 0;
+            if (*input)
+            {
+                *input++ = 0;
+                while (isspace(*input))
+                {
+                    input++;
+                }
+            }
+            
             if (count + 1 > argscap)
             {
                 argscap = argscap > 0 ? argscap * 2 : 32;
@@ -80,7 +89,7 @@ static char** luashell_splitargs(char* input)
             break;
         }
     }
-
+    
     if (count + 1 > argscap)
     {
         argscap = argscap > 0 ? argscap * 2 : 32;
@@ -88,55 +97,30 @@ static char** luashell_splitargs(char* input)
     }
     args[count] = 0;
 
+    if (outcount)
+    {
+        *outcount = count;
+    }
     return args;
 }
 
-typedef int (*luashell_command_func)(const char** args);
+typedef int (*luashell_command_func)(const char** args, int count);
 struct luashell_command
 {
     const char*           name;
     luashell_command_func func;
 };
 
-static int luashell_command_cd(const char** args);
+static int luashell_command_cd(const char** args, int count);
 //static int luashell_command_ls(const char** args);
-static int luashell_command_exit(const char** args);
+static int luashell_command_exit(const char** args, int count);
 
 static struct luashell_command commands[] = {
     { "cd", luashell_command_cd },
     { "exit", luashell_command_exit },
 };
 
-static int luashell_launch(const char** args)
-{
-    pid_t pid, wpid;
-    int status;
-
-    pid = fork();
-    if (pid == 0)
-    {
-        if (execvp(args[0], (void*)args) == -1)
-        {
-            perror("luashell");
-        }
-        exit(EXIT_FAILURE);
-    }
-    else if (pid < 0)
-    {
-        perror("luashell");
-    }
-    else
-    {
-        do
-        {
-            wpid = waitpid(pid, &status, WUNTRACED);
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-    }
-
-    return 0;
-}
-
-static int luashell_execute(const char** args)
+static int luashell_execute(const char** args, int count)
 {
     assert(args);
 
@@ -152,40 +136,34 @@ static int luashell_execute(const char** args)
         {
             if (strcmp(args[0], commands[i].name) == 0)
             {
-                return commands[i].func(args);
+                return commands[i].func(args, count);
             }
         }
 
-        return luashell_launch(args);
+        return luashell_launch(args, count);
     }
 }
 
-int luashell_command_cd(const char** args)
+int luashell_command_cd(const char** args, int count)
 {
     assert(args && strcmp("cd", args[0]) == 0);
 
-    int argscount = 0;
-    while (args[argscount])
+    if (count > 2)
     {
-        argscount++;
+        printf("Wrong syntax. Usage: cd <path>\n");
     }
-
-    if (argscount > 2)
+    else if (count == 2)
     {
-        printf("Wrong arguments number\nUsage: cd <path>\n");
-        return 0;
+        int rc = luashell_chdir(args[1]);
+        if (rc != 0)
+        {
+            perror("");
+        }
     }
-    else if (argscount < 2)
-    {
-        return 0;
-    }
-    else
-    {
-        return chdir(args[1]);
-    }
+    return 0;
 }
 
-int luashell_command_exit(const char** args)
+int luashell_command_exit(const char** args, int count)
 {
     assert(args && strcmp("exit", args[0]) == 0);
 
@@ -193,12 +171,26 @@ int luashell_command_exit(const char** args)
     return 0;
 }
 
+static void _sighandler(int sig)
+{
+    switch (sig)
+    {
+    case SIGINT:
+        /* NULL */
+        break;
+    }
+}
+
 int main(int argc, char* argv[])
 {
+    int count;
     int status = 0;
     char line[1024];
     char path[1024];
 
+    /* skip Ctrl+C signal */
+    signal(SIGINT, _sighandler);
+    
     lua_State* lua;
     lua = luaL_newstate();
     if (!lua)
@@ -209,14 +201,14 @@ int main(int argc, char* argv[])
     
     do
     {
-        getcwd(path, sizeof(path));
+        luashell_getcwd(path, sizeof(path));
         printf("%s> ", path);
         luashell_getline(line, sizeof(line));
 
         char* input = luashell_faststrtrim(line);
-        char** args = luashell_splitargs(input);
+        char** args = luashell_splitargs(input, &count);
 
-        status = luashell_execute((const char**)args);
+        status = luashell_execute((const char**)args, count);
     } while (!status);
 
     lua_close(lua);
