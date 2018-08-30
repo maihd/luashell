@@ -15,6 +15,11 @@ int luashell_chdir(const char* path)
     return chdir(path);
 }
 
+int luashell_mkdir(const char* path)
+{
+    return mkdir(path);
+}
+
 int luashell_launch(const char** args, int count)
 {
     pid_t pid, wpid;

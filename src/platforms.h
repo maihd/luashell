@@ -10,6 +10,7 @@
 #endif
 
 int luashell_chdir(const char* path);
+int luashell_mkdir(const char* path);
 int luashell_getcwd(char* buffer, int length);
 int luashell_launch(const char** args, int count);
 

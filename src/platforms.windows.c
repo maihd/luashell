@@ -17,6 +17,11 @@ int luashell_chdir(const char* path)
     return !SetCurrentDirectoryA(path);
 }
 
+int luashell_mkdir(const char* path)
+{
+    return !CreateDirectoryA(path, NULL);
+}
+
 int luashell_launch(const char** args, int count)
 {
     STARTUPINFO si;

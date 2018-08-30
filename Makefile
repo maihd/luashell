@@ -1,16 +1,20 @@
 CC=gcc
-CFLAGS=-I./LuaJIT/src
-LFLAGS=LuaJIT/src/libluajit.a
+CFLAGS=-I./3rdparty/LuaJIT/src
+LFLAGS=3rdparty/LuaJIT/src/libluajit.a
 
-SRC=luashell.c platforms.unix.c platforms.windows.c
-EXE=luashell.exe
+SRC=src/luashell.c src/platforms.unix.c src/platforms.windows.c
+EXE=bin/luashell.exe
 
 .PHONY: all clean
 
-all:
-	@$(MAKE) -C LuaJIT BUILDMODE=static
+all: $(luajit)
+	@rm -rf bin
+	@mkdir bin
 	@$(CC) -o $(EXE) $(SRC) $(CFLAGS) $(LFLAGS)
 
+luajit:
+	@$(MAKE) -C 3rdparty/LuaJIT BUILDMODE=static
+
 clean:
-	@rm -f luashell.exe
-	@$(MAKE) -C LuaJIT clean
+	@rm -f bin/luashell.exe
+	@$(MAKE) -C 3rdparty/LuaJIT clean
