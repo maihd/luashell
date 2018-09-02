@@ -14,6 +14,8 @@ int luashell_mkdir(const char* path);
 int luashell_getcwd(char* buffer, int length);
 int luashell_launch(const char** args, int count);
 
+int luashell_clrscr(void);
+
 int luashell_fileexists(const char* path);
 int luashell_isdirectory(const char* path);
 

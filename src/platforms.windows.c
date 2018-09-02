@@ -62,6 +62,52 @@ int luashell_launch(const char** args, int count)
     return 0;
 }
 
+int luashell_cls(HANDLE hConsole)
+{
+    COORD coordScreen = { 0, 0 };
+    DWORD cCharsWritten;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD dwConSize;
+
+    if (!GetConsoleScreenBufferInfo(hConsole, &csbi))
+    {
+        return -1;
+    }
+
+    dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
+
+    if (!FillConsoleOutputCharacter(hConsole,
+                                    ' ',
+                                    dwConSize,
+                                    coordScreen,
+                                    &cCharsWritten))
+    {
+        return -1;
+    }
+
+    if (!GetConsoleScreenBufferInfo(hConsole, &csbi))
+    {
+        return -1;
+    }
+
+    if (!FillConsoleOutputAttribute(hConsole,
+                                    csbi.wAttributes,
+                                    dwConSize,
+                                    coordScreen,
+                                    &cCharsWritten))
+    {
+        return -1;
+    }
+
+    SetConsoleCursorPosition(hConsole, coordScreen);
+    return 0;
+}
+
+int luashell_clrscr(void)
+{
+    return luashell_cls(GetStdHandle(STD_OUTPUT_HANDLE)) + luashell_cls(GetStdHandle(STD_ERROR_HANDLE));
+}
+
 int luashell_fileexists(const char* path)
 {
     FILE* file = fopen(path, "r");

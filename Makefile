@@ -7,7 +7,7 @@ EXE=bin/luashell.exe
 
 .PHONY: all clean
 
-all: $(luajit)
+all: luajit
 	@rm -rf bin
 	@mkdir bin
 	@$(CC) -o $(EXE) $(SRC) $(CFLAGS) $(LFLAGS)

@@ -104,6 +104,13 @@ static char** luashell_splitargs(char* input, int* outcount)
     return args;
 }
 
+static void luashell_intro(void)
+{
+    printf(
+        "LuaShell v1.0 by MaiHD\n"
+        "\n");
+}
+
 typedef int (*luashell_command_func)(const char** args, int count);
 struct luashell_command
 {
@@ -117,6 +124,7 @@ static int luashell_command_get  (const char** args, int count);
 static int luashell_command_help (const char** args, int count);
 static int luashell_command_exit (const char** args, int count);
 static int luashell_command_exec (const char** args, int count);
+static int luashell_command_clear(const char** args, int count);
 static int luashell_command_mkdir(const char** args, int count);
 
 static struct luashell_command commands[] = {
@@ -126,6 +134,7 @@ static struct luashell_command commands[] = {
     { "help",  luashell_command_help  },
     { "exit",  luashell_command_exit  },
     { "exec",  luashell_command_exec  },
+    { "clear", luashell_command_clear },
     { "mkdir", luashell_command_mkdir },
 };
 
@@ -225,6 +234,20 @@ int luashell_command_exec(const char** args, int count)
     return luashell_launch(args + 1, count);
 }
 
+int luashell_command_clear(const char** args, int count)
+{
+    assert(args && strcmp("clear", args[0]) == 0);
+    if (luashell_clrscr() == 0)
+    {
+        luashell_intro();
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 int luashell_command_mkdir(const char** args, int count)
 {
     assert(args && strcmp("mkdir", args[0]) == 0);
@@ -280,7 +303,8 @@ int main(int argc, char* argv[])
     {
         return -1;
     }
-    
+
+    luashell_intro();
     do
     {
         luashell_getcwd(path, sizeof(path));
