@@ -217,6 +217,14 @@ int luashell_command_set(const char** args, int count)
 
 int luashell_command_help(const char** args, int count)
 {
+    printf(
+        "LuaShell - shell with Lua as scriptings\n\n"
+        "cd\t Change directory\n"
+        "mkdir\t Create directiory\n"
+        "help\t Show help documents\n"
+        "exit\t Exit the application\n"
+        "exec\t Exec a command\n"
+        "clear\t Clear screen\n");
     return 0;
 }
 
