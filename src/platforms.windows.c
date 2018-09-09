@@ -108,6 +108,21 @@ int luashell_clrscr(void)
     return luashell_cls(GetStdHandle(STD_OUTPUT_HANDLE)) + luashell_cls(GetStdHandle(STD_ERROR_HANDLE));
 }
 
+int luashell_exedir(char* buffer, int length)
+{
+    char exepath[1024];
+    luashell_exepath(exepath, sizeof(exepath));
+
+    char* lastslash = strrchr(exepath, '\\');
+    strncpy(buffer, exepath, lastslash - exepath);
+    return lastslash - exepath;
+}
+
+int luashell_exepath(char* buffer, int length)
+{
+    return GetModuleFileNameA(NULL, buffer, length);
+}
+
 int luashell_fileexists(const char* path)
 {
     FILE* file = fopen(path, "r");

@@ -18,6 +18,7 @@
 #include <lauxlib.h>
 
 #include "platforms.h"
+#include "lualib_luashell.h"
 
 static char* luashell_getline(char* buffer, int length)
 {
@@ -147,7 +148,24 @@ static int luashell_openlua(void)
         return -1;
     }
     luaL_openlibs(lua_state);
+    luaL_openluashell(lua_state);
 
+    /* Save cwd */
+    char cwd[1024];
+    luashell_getcwd(cwd, sizeof(cwd));
+    
+    /* Get exe file name */
+    char exepath[1024];
+    luashell_exedir(exepath, sizeof(exepath));
+    luashell_chdir(exepath);
+    if (!(luaL_loadfile(lua_state, "lua/luashell.lua") || lua_pcall(lua_state, 0, LUA_MULTRET, 0)))
+    {
+        return -1;
+    }
+
+    /* Return back to cwd */
+    luashell_chdir(cwd);
+    
     return 0;
 }
 
@@ -281,22 +299,6 @@ static void _sighandler(int sig)
     }
 }
 
-static int luashell_lua_exit(lua_State* state)
-{
-    exit(EXIT_SUCCESS);
-    lua_pushinteger(state, 0);
-    return 1;
-}
-
-static int luashell_lua_exec(lua_State* state)
-{
-    static char** args;
-    static int argscap;
-    
-    lua_pushinteger(state, 0);
-    return 1;
-}
-
 int main(int argc, char* argv[])
 {
     int count;
@@ -306,7 +308,7 @@ int main(int argc, char* argv[])
 
     /* skip Ctrl+C signal */
     signal(SIGINT, _sighandler);
-
+    
     if (luashell_openlua() != 0)
     {
         return -1;
