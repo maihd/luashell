@@ -83,4 +83,28 @@ int luashell_isdirectory(const char* path)
     }
 }
 
+int luashell_setenv(const char* name, const char* value)
+{
+    return setenv(name, value, 1);
+}
+
+int luashell_getenv(const char* name, char* buffer, int length)
+{
+    char* value = getenv(name);
+    if (value)
+    {
+        strncpy(buffer, value, length);
+        return 0;
+    }
+    else
+    {
+        buffer[0] = 0;
+        return -1;
+    }
+}
+
+int luashell_homepath(char* buffer, int length)
+{
+    return luashell_getenv("HOME", buffer, length);
+}
 #endif

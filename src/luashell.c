@@ -1,7 +1,3 @@
-//
-// C runtime
-//
-
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,9 +5,6 @@
 #include <assert.h>
 #include <signal.h>
 
-//
-// Lua runtime
-//
 #include <lua.h>
 #include <luajit.h>
 #include <lualib.h>
@@ -112,6 +105,13 @@ static void luashell_intro(void)
         "\n");
 }
 
+static void luashell_prompt(void)
+{
+    static char cwd[1024];
+    luashell_getcwd(cwd, sizeof(cwd) - 1);
+    printf("%s> ", cwd);
+}
+
 typedef int (*luashell_command_func)(const char** args, int count);
 struct luashell_command
 {
@@ -119,14 +119,14 @@ struct luashell_command
     luashell_command_func func;
 };
 
-static int luashell_command_cd   (const char** args, int count);
-static int luashell_command_set  (const char** args, int count);
-static int luashell_command_get  (const char** args, int count);
-static int luashell_command_help (const char** args, int count);
-static int luashell_command_exit (const char** args, int count);
-static int luashell_command_exec (const char** args, int count);
-static int luashell_command_clear(const char** args, int count);
-static int luashell_command_mkdir(const char** args, int count);
+static int luashell_command_cd    (const char** args, int count);
+static int luashell_command_set   (const char** args, int count);
+static int luashell_command_get   (const char** args, int count);
+static int luashell_command_help  (const char** args, int count);
+static int luashell_command_exit  (const char** args, int count);
+static int luashell_command_exec  (const char** args, int count);
+static int luashell_command_clear (const char** args, int count);
+static int luashell_command_mkdir (const char** args, int count);
 
 static struct luashell_command commands[] = {
     { "cd"  ,  luashell_command_cd    },
@@ -157,9 +157,25 @@ static int luashell_openlua(void)
     /* Get exe file name */
     char exepath[1024];
     luashell_exedir(exepath, sizeof(exepath));
-    luashell_chdir(exepath);
-    if (!(luaL_loadfile(lua_state, "lua/luashell.lua") || lua_pcall(lua_state, 0, LUA_MULTRET, 0)))
+
+    /* Initialize luashell runtime */
+    char runtimepath[1024];
+#ifdef LUASHELL_WINDOWS
+    sprintf(runtimepath, "%s\\lua\\luashell.lua", exepath);
+#else
+    sprintf(runtimepath, "%s/lua/luashell.lua", exepath);
+#endif
+    
+    if (luaL_loadfile(lua_state, runtimepath))
     {
+        fprintf(stderr, "Error: failed to open %s\nPress any key to exit...", runtimepath);
+        getchar();
+        return -1;
+    }
+    if (lua_pcall(lua_state, 0, -1, 0) != 0)
+    {
+        fprintf(stderr, "Error: failed to initialize Lua runtime\nPress any key to exit...");
+        getchar();
         return -1;
     }
 
@@ -220,29 +236,57 @@ int luashell_command_cd(const char** args, int count)
             perror("");
         }
     }
+    else
+    {
+        char cwd[1024];
+        luashell_getcwd(cwd, sizeof(cwd) - 1);
+        printf("Current working directory: %s\n", cwd);
+    }
     return 0;
 }
 
 int luashell_command_get(const char** args, int count)
 {
+    if (count != 2)
+    {
+        printf("Wrong syntax. Usage: get <variable>\n");
+    }
+    else
+    {
+        char var[1024];
+        luashell_getenv(args[1], var, sizeof(var) - 1);
+        printf("%s=%s", args[1], var);
+    }
     return 0;
 }
 
 int luashell_command_set(const char** args, int count)
 {
+    if (count != 3)
+    {
+        printf("Wrong syntax. Usage: set <name> <value>\n");
+    }
+    else
+    {
+        luashell_setenv(args[1], args[2]);
+    }
     return 0;
 }
 
 int luashell_command_help(const char** args, int count)
 {
     printf(
-        "LuaShell - shell with Lua as scriptings\n\n"
-        "cd\t Change directory\n"
-        "mkdir\t Create directiory\n"
-        "help\t Show help documents\n"
-        "exit\t Exit the application\n"
-        "exec\t Exec a command\n"
-        "clear\t Clear screen\n");
+        "LuaShell - Shell with Lua as scriptings\n\n"
+        "cd       Change directory\n"
+        "mkdir    Create directiory\n"
+        "help     Show help documents\n"
+        "exit     Exit the application\n"
+        "exec     Exec a command\n"
+        "clear    Clear screen\n"
+        "get      Get environment variable\n"
+        "set      Set environment variable\n"
+    );
+    
     return 0;
 }
 
@@ -313,18 +357,19 @@ int main(int argc, char* argv[])
     {
         return -1;
     }
-
+    
     luashell_intro();
     do
     {
-        luashell_getcwd(path, sizeof(path));
-        printf("%s> ", path);
+        luashell_prompt();
         luashell_getline(line, sizeof(line));
 
         char* input = luashell_faststrtrim(line);
         char** args = luashell_splitargs(input, &count);
 
         status = luashell_execute((const char**)args, count);
+
+        printf("\n");
     } while (!status);
 
     luashell_closelua();

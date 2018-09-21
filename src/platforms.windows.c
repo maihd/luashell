@@ -142,4 +142,34 @@ int luashell_isdirectory(const char* path)
     return GetFileAttributesA(path) & FILE_ATTRIBUTE_DIRECTORY;
 }
 
+
+int luashell_setenv(const char* name, const char* value)
+{
+    return SetEnvironmentVariableA(name, value);
+}
+
+int luashell_getenv(const char* name, char* buffer, int length)
+{
+    if (length < 0)
+    {
+        return -1;
+    }
+    
+    DWORD res = GetEnvironmentVariableA(name, buffer, (DWORD)length);
+    if (res > 0)
+    {
+        return 0;
+    }
+    else
+    {
+        buffer[0] = 0;
+        return -1;
+    }
+}
+
+int luashell_homepath(char* buffer, int length)
+{
+    return luashell_getenv("HOME", buffer, length);
+}
+
 #endif
