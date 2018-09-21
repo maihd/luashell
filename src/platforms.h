@@ -16,8 +16,8 @@ int luashell_launch(const char** args, int count);
 
 int luashell_clrscr(void);
 
-int luashell_getenv(const char* name, char* buffer, int length);
 int luashell_setenv(const char* name, const char* value);
+int luashell_getenv(const char* name, char* buffer, int length);
 
 int luashell_homepath(char* buffer, int length);
 
